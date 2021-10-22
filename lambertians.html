@@ -81,67 +81,32 @@
 	   canvas.style.width  = width  + 'px';
 	   canvas.style.height = height + 'px';
  }
+ function ClearScene()
+ {
+     const overlay = document.getElementById("overlay");
+     while (overlay.firstChild) {
+         overlay.removeChild(overlay.firstChild);
+     }
+ }
  function GenerateScene()
  {
- }
- function Reflect()
- {
- }
- function Refract()
- {
-     console.log("coming soon... _Refract!_");
- }
- function UpdateLines()
- {
-	   var line = new Array(3);
-	   line[0] = document.getElementById("line0");
-	   //line[1] = document.getElementById("line1");
-	   //line[2] = document.getElementById("line2");
-	   var x1 = pt[0].getAttribute("cx");
-	   var y1 = pt[0].getAttribute("cy");
-	   var d = "M" + x1 + "," + y1 + " C";
-	   for ( var i=0; i<1; ++i ) {
-		     var x2 = pt[i+1].getAttribute("cx");
-		     var y2 = pt[i+1].getAttribute("cy");
-		     line[i].setAttribute("x1", x1);
-		     line[i].setAttribute("y1", y1);
-		     line[i].setAttribute("x2", x2);
-		     line[i].setAttribute("y2", y2);
-		     d += x2 + "," + y2 + " ";
-		     x1 = x2;
-		     y1 = y2;
-	   }
-	   //var c = document.getElementById("curve");
-	   //c.setAttribute("d",d);
- }
- function resizedw(){
-     // Haven't resized in 100ms!
-     console.log("you momma");
-		 UpdateCanvasSize();
-     GenerateScene();
- }
+     const overlay = document.getElementById("overlay");
 
- ///////////////////////////////////////////////////////////////////////////////////
- // Below are the main UI control and SVG update functions.
- ///////////////////////////////////////////////////////////////////////////////////
- var key_presses = 0;
- var doit; // timer for window resize
- var selPt = null;
- var normlen_pct = 0.15;
- var k_pct = 0.30;
- var k_pct_sides = 0.10;
- var pt = new Array(4);
- $(document).ready(function() {
 	   var w = document.documentElement.clientWidth;
 	   var h = document.documentElement.clientHeight;
      var normlen = normlen_pct * h;
-	   pt[0] = document.getElementById("p0");
-	   pt[1] = document.getElementById("p1");
-	   pt[2] = document.getElementById("p2");
-	   pt[3] = document.getElementById("p3");
+     lines[0] = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+     pt[0] = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+     pt[1] = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+     pt[2] = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+     pt[3] = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+     overlay.appendChild(pt[0]);
+     overlay.appendChild(pt[1]);
+     overlay.appendChild(pt[2]);
+     overlay.appendChild(pt[3]);
 
      // cute antennae
-	   pt[0].setAttribute("cx", .1*w);
+     pt[0].setAttribute("cx", .1*w);
      console.log("type of pt[0]: " + typeof pt[0]);
      console.log("type of pt[0].getAttribute(cx): " + typeof pt[0].getAttribute("cx"));
      console.log("parseFloat(type of pt[0].getAttribute(cx)): " + typeof parseFloat(pt[0].getAttribute("cx")));
@@ -178,7 +143,7 @@
          var p = [0.5*w, h*(1.0-k_pct)]; // hit point from which reflection will begin
      }
      console.log("origin: " + p[0] +", "+p[1]);
-     for (i=0; i<1000; i++) {
+     for (i=0; i<10; i++) {
          do {
              var x = Math.random()*2.0 - 1.0;
              var y = Math.random()*2.0 - 1.0;
@@ -200,7 +165,6 @@
          point.setAttribute("stroke", "lightgreen")
          point.setAttribute("stroke", "lightgreen")
          point.setAttribute("fill", "lightgreen")
-         const overlay = document.getElementById("overlay");
          overlay.appendChild(point);
 
          if (from_circle) {
@@ -224,6 +188,55 @@
          line.setAttribute("stroke-width", 0.5)
          overlay.appendChild(line);
      }
+ }
+ function Reflect()
+ {
+ }
+ function Refract()
+ {
+     console.log("coming soon... _Refract!_");
+ }
+ function UpdateLines()
+ {
+	   //lines[0] = document.getElementById("line0");
+	   //lines[1] = document.getElementById("line1");
+	   //lines[2] = document.getElementById("line2");
+	   var x1 = pt[0].getAttribute("cx");
+	   var y1 = pt[0].getAttribute("cy");
+	   var d = "M" + x1 + "," + y1 + " C";
+	   for ( var i=0; i<1; ++i ) {
+		     var x2 = pt[i+1].getAttribute("cx");
+		     var y2 = pt[i+1].getAttribute("cy");
+		     lines[i].setAttribute("x1", x1);
+		     lines[i].setAttribute("y1", y1);
+		     lines[i].setAttribute("x2", x2);
+		     lines[i].setAttribute("y2", y2);
+		     d += x2 + "," + y2 + " ";
+		     x1 = x2;
+		     y1 = y2;
+	   }
+	   //var c = document.getElementById("curve");
+	   //c.setAttribute("d",d);
+ }
+ function resizedw(){
+     // Haven't resized in 100ms!
+		 UpdateCanvasSize();
+     ClearScene();
+     GenerateScene();
+ }
+
+ ///////////////////////////////////////////////////////////////////////////////////
+ // Below are the main UI control and SVG update functions.
+ ///////////////////////////////////////////////////////////////////////////////////
+ var key_presses = 0;
+ var doit; // timer for window resize
+ var selPt = null;
+ var normlen_pct = 0.15;
+ var k_pct = 0.30;
+ var k_pct_sides = 0.10;
+ var lines = new Array(3);
+ var pt = new Array(4);
+ $(document).ready(function() {
 
 	   $("circle").on( "mousedown", function( event ) {
 		     if ( ! selPt ) selPt = event.target;
@@ -261,7 +274,7 @@
          }
 
          key_presses++;
-p	   });
+     });
 	   $(window).on( "resize", function( event ) {
          clearTimeout(doit);
          doit = setTimeout(resizedw, 100);
@@ -347,11 +360,6 @@ p	   });
 <body>
     <canvas id="canvas"></canvas>
     <svg id="overlay">
-		    <line id="line0" />
-	      <circle id="p0" />
-	      <circle id="p1" />
-	      <circle id="p2" />
-	      <circle id="p3" />
     </svg>
     <div id="keyboard_help">Press a key to change image.</div>
     <div id="mode">artistic</div>
