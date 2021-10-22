@@ -1,0 +1,359 @@
+<doctype html>
+<!-- Cameron Christensen - Fall '20 -->
+<!-- Visualization of Lambertian reflections noted in Peter Shirley's "Ray Tracing in One Weekend" -->
+<!-- Adapted from cs4600 b-splines example from Cem Yuksel -->
+<html>
+<head>
+<title>Lambertian reflection visualization</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+<script type="text/javascript">
+
+ class Vec {
+     x;
+     y;
+	   constructor(_x,_y)
+	   {
+         this.x=_x;
+         this.y=_y;
+     }
+
+     dot(other) { return this.x*other.x + this.y*other.y; }
+	   len_squared() { return this.dot(this); }
+	   len() { return Math.sqrt(this.len_squared()); }
+     normalize() {
+         var l = this.len();
+         this.x /= l;
+         this.y /= l;
+     }
+     plus(other) { return new Vec(this.x+other.x, this.y+other.y); }
+     sub(other) { return new Vec(this.x-other.x, this.y-other.y); }
+     mul(t) { return new Vec(this.x*t, this.y*t); }
+ }
+
+ class Ray {
+     o;
+     v;
+	   constructor(_o,_v)
+	   {
+         this.o=_o;
+         this.v=_v;
+         //this.v.normalize();
+     }
+
+     at(t) { return this.o.plus(this.v.mul(t)); }
+ }
+
+ // Called once to initialize
+ function InitCanvas()
+ {
+	   // Initialize the WebGL canvas
+	   const canvas = document.getElementById("canvas");
+	   canvas.oncontextmenu = function() {return false;};
+
+	   // Set the viewport size
+	   UpdateCanvasSize();
+ }
+
+ function UpdatePoints()
+ {
+		 // The control points have changed, so we must update 
+		 // the data in the in the vertex buffer
+		 var p = [];
+		 for ( var i=0; i<4; ++i ) {
+			   var x = pt[i].getAttribute("cx");
+			   var y = pt[i].getAttribute("cy");
+			   p.push(x);
+			   p.push(y);
+		 }
+ }
+ // Called every time the window size is changed.
+ function UpdateCanvasSize()
+ {
+	   const canvas = document.getElementById("canvas");
+	   canvas.style.width  = '100%';
+	   canvas.style.height = '100%';
+	   const pixelRatio = window.devicePixelRatio || 1;
+	   canvas.width  = pixelRatio * canvas.clientWidth;
+	   canvas.height = pixelRatio * canvas.clientHeight;
+	   const width  = (canvas.width  / pixelRatio);
+	   const height = (canvas.height / pixelRatio);
+	   canvas.style.width  = width  + 'px';
+	   canvas.style.height = height + 'px';
+ }
+ function GenerateScene()
+ {
+ }
+ function Reflect()
+ {
+ }
+ function Refract()
+ {
+     console.log("coming soon... _Refract!_");
+ }
+ function UpdateLines()
+ {
+	   var line = new Array(3);
+	   line[0] = document.getElementById("line0");
+	   //line[1] = document.getElementById("line1");
+	   //line[2] = document.getElementById("line2");
+	   var x1 = pt[0].getAttribute("cx");
+	   var y1 = pt[0].getAttribute("cy");
+	   var d = "M" + x1 + "," + y1 + " C";
+	   for ( var i=0; i<1; ++i ) {
+		     var x2 = pt[i+1].getAttribute("cx");
+		     var y2 = pt[i+1].getAttribute("cy");
+		     line[i].setAttribute("x1", x1);
+		     line[i].setAttribute("y1", y1);
+		     line[i].setAttribute("x2", x2);
+		     line[i].setAttribute("y2", y2);
+		     d += x2 + "," + y2 + " ";
+		     x1 = x2;
+		     y1 = y2;
+	   }
+	   //var c = document.getElementById("curve");
+	   //c.setAttribute("d",d);
+ }
+ function resizedw(){
+     // Haven't resized in 100ms!
+     console.log("you momma");
+		 UpdateCanvasSize();
+     GenerateScene();
+ }
+
+ ///////////////////////////////////////////////////////////////////////////////////
+ // Below are the main UI control and SVG update functions.
+ ///////////////////////////////////////////////////////////////////////////////////
+ var key_presses = 0;
+ var doit; // timer for window resize
+ var selPt = null;
+ var normlen_pct = 0.15;
+ var k_pct = 0.30;
+ var k_pct_sides = 0.10;
+ var pt = new Array(4);
+ $(document).ready(function() {
+	   var w = document.documentElement.clientWidth;
+	   var h = document.documentElement.clientHeight;
+     var normlen = normlen_pct * h;
+	   pt[0] = document.getElementById("p0");
+	   pt[1] = document.getElementById("p1");
+	   pt[2] = document.getElementById("p2");
+	   pt[3] = document.getElementById("p3");
+
+     // cute antennae
+	   pt[0].setAttribute("cx", .1*w);
+     console.log("type of pt[0]: " + typeof pt[0]);
+     console.log("type of pt[0].getAttribute(cx): " + typeof pt[0].getAttribute("cx"));
+     console.log("parseFloat(type of pt[0].getAttribute(cx)): " + typeof parseFloat(pt[0].getAttribute("cx")));
+	   pt[0].setAttribute("cy", .6*h);
+	   pt[0].setAttribute("r", 20);
+	   pt[0].setAttribute("fill", "none");
+
+     // put a big sphere in there as the object having been struck by the ray
+     var s = h*k_pct_sides;
+     var r = s/2.0 + w*w/(8.0*s); // https://www.mathopenref.com/arcradiusderive.html
+     console.log("r: " + r);
+	   pt[1].setAttribute("r", r);
+	   pt[1].setAttribute("cy", h + r - h*k_pct);
+	   pt[1].setAttribute("cx", 0.5*w);
+	   pt[1].setAttribute("fill", "red");
+
+     // unit cirle at hit point
+     var c = [.5*w, h*(1.0-k_pct - normlen_pct)];
+	   pt[2].setAttribute("cx", c[0]);
+	   pt[2].setAttribute("cy", c[1]);
+	   pt[2].setAttribute("r", normlen);
+	   pt[2].setAttribute("fill", "none");
+
+     // mole
+	   pt[3].setAttribute("cx", .9*w);
+	   pt[3].setAttribute("cy", .85*h);
+	   pt[3].setAttribute("r", 7);
+	   pt[3].setAttribute("fill", "black");
+
+     // generate some lines of reflection
+     var from_circle = true;
+     var p = c; // visualize from center of unit circle
+     if (!from_circle) {
+         var p = [0.5*w, h*(1.0-k_pct)]; // hit point from which reflection will begin
+     }
+     console.log("origin: " + p[0] +", "+p[1]);
+     for (i=0; i<1000; i++) {
+         do {
+             var x = Math.random()*2.0 - 1.0;
+             var y = Math.random()*2.0 - 1.0;
+         } while ((x*x + y*y) > 1.0);
+         sample = new Vec(x,y);
+         //console.log("sample: " + sample.x + ", " + sample.y);
+
+         // to better simulate Lambertian, normalize the sample to the edge of the circle
+         var better_sampling = false;
+         if (better_sampling) {
+             sample.normalize();
+         }
+
+         // throw in some cute colored pts to show where the sample comes from
+         var point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+         point.setAttribute('cx',c[0]+normlen*sample.x);
+         point.setAttribute('cy',c[1]+normlen*sample.y);
+         point.setAttribute("r", 5)
+         point.setAttribute("stroke", "lightgreen")
+         point.setAttribute("stroke", "lightgreen")
+         point.setAttribute("fill", "lightgreen")
+         const overlay = document.getElementById("overlay");
+         overlay.appendChild(point);
+
+         if (from_circle) {
+             ray = new Ray(new Vec(p[0], p[1]), sample);
+         }
+         else {
+             rvec = new Vec(c[0]+normlen*sample.x-p[0],
+                            c[1]+normlen*sample.y-p[1]);
+             rvec.normalize();
+             ray = new Ray(new Vec(p[0], p[1]), rvec);
+         }
+
+         var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+         line.setAttribute('x1',p[0]);
+         line.setAttribute('y1',p[1]);
+         tpt = ray.at(3.0*normlen);
+         line.setAttribute('x2',tpt.x);
+         line.setAttribute('y2',tpt.y);
+         line.setAttribute("stroke", "black")
+         line.setAttribute("stroke-linecap", "round");
+         line.setAttribute("stroke-width", 0.5)
+         overlay.appendChild(line);
+     }
+
+	   $("circle").on( "mousedown", function( event ) {
+		     if ( ! selPt ) selPt = event.target;
+	   });
+	   $("circle").on( "mouseup", function( event ) {
+		     selPt = null;
+	   });
+	   $(document).on( "mouseleave", function( event ) {
+		     selPt = null;
+	   });
+	   $(document).on( "mousemove", function( event ) {
+		     if ( selPt ) {
+			       selPt.setAttribute("cx", event.clientX);
+			       selPt.setAttribute("cy", event.clientY);
+			       UpdateLines();
+			       UpdatePoints();
+		     }
+	   });
+	   $(document).on( "keydown", function( event ) {
+         const help = document.getElementById("keyboard_help");
+         if ( key_presses == 0 ) {
+             help.innerHTML = "nope. Try again.";
+         } else if ( key_presses == 1 ) {
+             help.innerHTML = "come on, you got this!";
+         } else if ( key_presses == 2 ) {
+             help.innerHTML = "Okay, fine. Press 'h' for help.";
+         }
+         if (key_presses >= 3) {
+             switch (event.key) {
+                 case 'h':
+                     help.innerHTML = "actually, I really don't know... I guess we want to move from the hit point to the center of the unit sphere.\nBut that doesn't mean much if we use the hemisphere. So much state! Aaaaaah! (runs away)";
+                     break;
+                 default: help.innerHTML = "Press 'h' for help.";
+             }
+         }
+
+         key_presses++;
+p	   });
+	   $(window).on( "resize", function( event ) {
+         clearTimeout(doit);
+         doit = setTimeout(resizedw, 100);
+	   });
+     InitCanvas();
+     GenerateScene();
+	   UpdateLines();
+	   UpdatePoints();
+ });
+ ///////////////////////////////////////////////////////////////////////////////////
+</script>
+
+// no idea what is different about div below and a <p> id here, or why the <p>id (haha) needs canvas
+// oh! accidental discovery: it's just multiple things, canvas for the canvas, and #foo for that <p>id
+// well, one problem is the <p> disappeared, going <div> -- which didn't help!
+// no clue... and I was almost liking this html-css-js thing
+// omfg: the comments were the killer. It's like the *want* to have bad code.
+
+<style>
+ html {
+	   color: black;
+	   background-color: white;
+	   font-family: Arial;
+	   overflow: hidden;
+ }
+ body {
+	   padding: 0;
+	   margin: 0;
+ }
+ canvas, #overlay {
+	   display: block;
+	   position: fixed;
+	   top:  0;
+	   left: 0;
+	   width:  100%;
+	   height: 100%;
+     background: lightblue;
+ }
+ #keyboard_help {
+     font-family: Arial, Helvetica, sans-serif;
+     color: gray;
+     border: 1px solid green;
+     background: white;
+     position: fixed;
+     top: 0;
+     left: 0;
+     width: 20%
+ }
+ #mode {
+     color: gray;
+     background: pink;
+     position: fixed;
+     top: 0;
+     right: 0;
+     width: 20%;
+     border: 3px solid #73AD21;
+ }
+ circle {
+	   //fill: none;
+	   stroke: black;
+	   stroke-width: 1px;
+	   //r: 5px;  // everyone or noone, not overridable
+ }
+ circle:hover {
+	   fill: red;
+	   cursor: hand;
+	   stroke-width: 2px;
+ }
+ line {
+	   stroke: black;
+	   stroke-width: 2px;
+	   //stroke-dasharray: 2, 20;
+ }
+ path {
+	   stroke: green;
+	   stroke-width: 2px;
+	   stroke-dasharray: 2, 20;
+	   fill: none;
+ }
+</style>
+
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <svg id="overlay">
+		    <line id="line0" />
+	      <circle id="p0" />
+	      <circle id="p1" />
+	      <circle id="p2" />
+	      <circle id="p3" />
+    </svg>
+    <div id="keyboard_help">Press a key to change image.</div>
+    <div id="mode">artistic</div>
+</body>
+</html>
