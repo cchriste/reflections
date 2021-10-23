@@ -1,7 +1,8 @@
 <doctype html>
 <!-- Cameron Christensen - Fall '20 -->
-<!-- Visualization of Lambertian reflections noted in Peter Shirley's "Ray Tracing in One Weekend" -->
-<!-- Adapted from cs4600 b-splines example from Cem Yuksel -->
+<!-- Visualization of Lambertian reflections as described in Peter Shirley's "Ray Tracing in One Weekend" -->
+<!-- Adapted from cs4600 b-splines example from Cem Yuksel (thanks!)-->
+<!-- <self-deprecation> Maybe somebody has done this already, and likely better. I just wanted to better understand and compare these algorithms for Lambertian reflection. This is my first use of jquery and svg. This is clearly hacky. I just wrote quick Vec and Ray classes because I was too lazy to cut and paste anything, much less find a module to import, then learn how to use it--I just wanted to see some lines, remember? Plus xxXxXx has traumitized me so much that I now avoid ever wanting to use anyone else's libraries ever again. Yes, I'm going to share this, and I don't want to be judged on this crap code, but it's still cool to press a couple keys to see the differences between these methods clearly illustrated. </self-deprecation> -->
 <html>
 <head>
 <title>Lambertian reflection visualization</title>
@@ -55,18 +56,6 @@
 	   UpdateCanvasSize();
  }
 
- function UpdatePoints()
- {
-		 // The control points have changed, so we must update 
-		 // the data in the in the vertex buffer
-		 var p = [];
-		 for ( var i=0; i<4; ++i ) {
-			   var x = pt[i].getAttribute("cx");
-			   var y = pt[i].getAttribute("cy");
-			   p.push(x);
-			   p.push(y);
-		 }
- }
  // Called every time the window size is changed.
  function UpdateCanvasSize()
  {
@@ -81,6 +70,7 @@
 	   canvas.style.width  = width  + 'px';
 	   canvas.style.height = height + 'px';
  }
+
  function ClearScene()
  {
      const overlay = document.getElementById("overlay");
@@ -88,6 +78,7 @@
          overlay.removeChild(overlay.firstChild);
      }
  }
+
  function GenerateScene()
  {
      const overlay = document.getElementById("overlay");
@@ -95,29 +86,17 @@
 	   var w = document.documentElement.clientWidth;
 	   var h = document.documentElement.clientHeight;
      var normlen = normlen_pct * h;
-     lines[0] = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-     pt[0] = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
      pt[1] = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
      pt[2] = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
      pt[3] = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-     overlay.appendChild(pt[0]);
      overlay.appendChild(pt[1]);
      overlay.appendChild(pt[2]);
      overlay.appendChild(pt[3]);
 
-     // cute antennae
-     pt[0].setAttribute("cx", .1*w);
-     console.log("type of pt[0]: " + typeof pt[0]);
-     console.log("type of pt[0].getAttribute(cx): " + typeof pt[0].getAttribute("cx"));
-     console.log("parseFloat(type of pt[0].getAttribute(cx)): " + typeof parseFloat(pt[0].getAttribute("cx")));
-	   pt[0].setAttribute("cy", .6*h);
-	   pt[0].setAttribute("r", 20);
-	   pt[0].setAttribute("fill", "none");
-
      // put a big sphere in there as the object having been struck by the ray
      var s = h*k_pct_sides;
      var r = s/2.0 + w*w/(8.0*s); // https://www.mathopenref.com/arcradiusderive.html
-     console.log("r: " + r);
+     //console.log("r: " + r);
 	   pt[1].setAttribute("r", r);
 	   pt[1].setAttribute("cy", h + r - h*k_pct);
 	   pt[1].setAttribute("cx", 0.5*w);
@@ -137,13 +116,12 @@
 	   pt[3].setAttribute("fill", "black");
 
      // generate some lines of reflection
-     var from_circle = true;
-     var p = c; // visualize from center of unit circle
      if (!from_circle) {
          var p = [0.5*w, h*(1.0-k_pct)]; // hit point from which reflection will begin
      }
-     console.log("origin: " + p[0] +", "+p[1]);
-     for (i=0; i<10; i++) {
+     else { var p = c; }// visualize from center of unit circle
+     //console.log("origin: " + p[0] +", "+p[1]);
+     for (i=0; i<nsamples; i++) {
          do {
              var x = Math.random()*2.0 - 1.0;
              var y = Math.random()*2.0 - 1.0;
@@ -152,7 +130,6 @@
          //console.log("sample: " + sample.x + ", " + sample.y);
 
          // to better simulate Lambertian, normalize the sample to the edge of the circle
-         var better_sampling = false;
          if (better_sampling) {
              sample.normalize();
          }
@@ -189,35 +166,16 @@
          overlay.appendChild(line);
      }
  }
+
  function Reflect()
  {
  }
+
  function Refract()
  {
      console.log("coming soon... _Refract!_");
  }
- function UpdateLines()
- {
-	   //lines[0] = document.getElementById("line0");
-	   //lines[1] = document.getElementById("line1");
-	   //lines[2] = document.getElementById("line2");
-	   var x1 = pt[0].getAttribute("cx");
-	   var y1 = pt[0].getAttribute("cy");
-	   var d = "M" + x1 + "," + y1 + " C";
-	   for ( var i=0; i<1; ++i ) {
-		     var x2 = pt[i+1].getAttribute("cx");
-		     var y2 = pt[i+1].getAttribute("cy");
-		     lines[i].setAttribute("x1", x1);
-		     lines[i].setAttribute("y1", y1);
-		     lines[i].setAttribute("x2", x2);
-		     lines[i].setAttribute("y2", y2);
-		     d += x2 + "," + y2 + " ";
-		     x1 = x2;
-		     y1 = y2;
-	   }
-	   //var c = document.getElementById("curve");
-	   //c.setAttribute("d",d);
- }
+
  function resizedw(){
      // Haven't resized in 100ms!
 		 UpdateCanvasSize();
@@ -236,6 +194,9 @@
  var k_pct_sides = 0.10;
  var lines = new Array(3);
  var pt = new Array(4);
+ var from_circle = false;
+ var better_sampling = true;
+ var nsamples = 100;
  $(document).ready(function() {
 
 	   $("circle").on( "mousedown", function( event ) {
@@ -251,12 +212,11 @@
 		     if ( selPt ) {
 			       selPt.setAttribute("cx", event.clientX);
 			       selPt.setAttribute("cy", event.clientY);
-			       UpdateLines();
-			       UpdatePoints();
 		     }
 	   });
 	   $(document).on( "keydown", function( event ) {
          const help = document.getElementById("keyboard_help");
+         const state = document.getElementById("state");
          if ( key_presses == 0 ) {
              help.innerHTML = "nope. Try again.";
          } else if ( key_presses == 1 ) {
@@ -265,14 +225,46 @@
              help.innerHTML = "Okay, fine. Press 'h' for help.";
          }
          if (key_presses >= 3) {
+             var changed = false;
              switch (event.key) {
+                 case 'c':
+                     from_circle = !from_circle;
+                     changed = true;
+                     break;
+                 case 'l':
+                     better_sampling = !better_sampling;
+                     changed = true;
+                     break;
+                 case 'r':
+                     changed = true;
+                     break;
+                 case '+':
+                 case '=':
+                     nsamples *= 3.14159/2.0;
+                     changed = true;
+                     break;
+                 case '-':
+                     nsamples /= 3.14159/2.0;
+                     changed = true;
+                     break;
                  case 'h':
-                     help.innerHTML = "actually, I really don't know... I guess we want to move from the hit point to the center of the unit sphere.\nBut that doesn't mean much if we use the hemisphere. So much state! Aaaaaah! (runs away)";
+                     help.innerHTML = "'l' to toggle Lambertian<br>'c' to toggle source<br>'r' refresh<br>'+'/'-' inc/dec lines"
                      break;
                  default: help.innerHTML = "Press 'h' for help.";
              }
-         }
 
+             state.innerHTML = "";
+             if (better_sampling) state.innerHTML += "Lambertian";
+             else                 state.innerHTML += "_cheap_ Lambertian";
+             state.innerHTML += " *radiance* ";
+             if (from_circle)     state.innerHTML += "from the center";
+             else                 state.innerHTML += "from hit point";
+             // else hemispherical, but not done so just putting a todo here rather than figuring out how to better show status
+             if (changed) {
+                 ClearScene();
+                 GenerateScene();
+             }
+         }
          key_presses++;
      });
 	   $(window).on( "resize", function( event ) {
@@ -281,8 +273,6 @@
 	   });
      InitCanvas();
      GenerateScene();
-	   UpdateLines();
-	   UpdatePoints();
  });
  ///////////////////////////////////////////////////////////////////////////////////
 </script>
@@ -311,26 +301,28 @@
 	   left: 0;
 	   width:  100%;
 	   height: 100%;
-     background: lightblue;
+     background: #a6c8ff;
  }
  #keyboard_help {
      font-family: Arial, Helvetica, sans-serif;
      color: gray;
-     border: 1px solid green;
      background: white;
      position: fixed;
      top: 0;
      left: 0;
-     width: 20%
+     width: 25%;
+     border: 3px solid #73AD21;
+     padding: 2px;
  }
- #mode {
+ #state {
      color: gray;
-     background: pink;
+     background: white;
      position: fixed;
      top: 0;
      right: 0;
      width: 20%;
      border: 3px solid #73AD21;
+     padding: 2px;
  }
  circle {
 	   //fill: none;
@@ -362,6 +354,6 @@
     <svg id="overlay">
     </svg>
     <div id="keyboard_help">Press a key to change image.</div>
-    <div id="mode">artistic</div>
+    <div id="state">artistic</div>
 </body>
 </html>
