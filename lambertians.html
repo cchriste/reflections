@@ -1,8 +1,10 @@
 <doctype html>
-<!-- Cameron Christensen - Fall '20 -->
-<!-- Visualization of Lambertian reflections as described in Peter Shirley's "Ray Tracing in One Weekend" -->
-<!-- Adapted from cs4600 b-splines example from Cem Yuksel (thanks!)-->
-<!-- <self-deprecation> Maybe somebody has done this already, and likely better. I just wanted to better understand and compare these algorithms for Lambertian reflection. This is my first use of jquery and svg. This is clearly hacky. I just wrote quick Vec and Ray classes because I was too lazy to cut and paste anything, much less find a module to import, then learn how to use it--I just wanted to see some lines, remember? Plus xxXxXx has traumitized me so much that I now avoid ever wanting to use anyone else's libraries ever again. Yes, I'm going to share this, and I don't want to be judged on this crap code, but it's still cool to press a couple keys to see the differences between these methods clearly illustrated. </self-deprecation> -->
+    <!-- Cameron Christensen - Fall '20 -->
+    <!-- *Visualization* of Lambertian reflections as described in Peter Shirley's "Ray Tracing in One Weekend" -->
+    <!-- Don't look at this and trie to actually create a reflection vector in real life -->
+    <!-- Adapted from cs4600 b-splines example from Cem Yuksel (thanks!)-->
+    <!-- <self-deprecation> Maybe somebody has done this already, and likely better. I just wanted to better understand and compare these algorithms for Lambertian reflection. This is my first use of jquery and svg. This is clearly hacky. I just wrote quick Vec and Ray classes because I was too lazy to cut and paste anything, much less find a module to import, then learn how to use it--I just wanted to see some lines, remember? Plus xxXxXx has traumitized me so much that I now avoid ever wanting to use anyone else's libraries ever again. Yes, I'm going to share this, and I don't want to be judged on this crap code, but it's still cool to press a couple keys to see the differences between these methods clearly illustrated. </self-deprecation> -->
+    <!-- ...and for hack sakes, Don't Use This In Real Life!! -->
 <html>
 <head>
 <title>Lambertian reflection visualization</title>
@@ -27,7 +29,7 @@
          this.x /= l;
          this.y /= l;
      }
-     plus(other) { return new Vec(this.x+other.x, this.y+other.y); }
+     add(other) { return new Vec(this.x+other.x, this.y+other.y); }
      sub(other) { return new Vec(this.x-other.x, this.y-other.y); }
      mul(t) { return new Vec(this.x*t, this.y*t); }
  }
@@ -42,7 +44,7 @@
          //this.v.normalize();
      }
 
-     at(t) { return this.o.plus(this.v.mul(t)); }
+     at(t) { return this.o.add(this.v.mul(t)); }
  }
 
  // Called once to initialize
@@ -79,6 +81,25 @@
      }
  }
 
+ // alright, no enums is the straw. I finally want to use TypeScript.
+ const SamplingType = {
+     PoorLambertian: "almost Lambertian",
+     Lambertian: "Lambertian",
+     Hemispherical: "hemispherical"
+ };
+ // cycle sampling types
+ function getNextSamplingType(stype) {
+     if (stype === SamplingType.PoorLambertian) return SamplingType.Lambertian;
+     if (stype === SamplingType.Lambertian) return SamplingType.Hemispherical;
+     if (stype === SamplingType.Hemispherical) return SamplingType.PoorLambertian;
+ }
+ function getPrevSamplingType(stype) {
+     if (stype === SamplingType.PoorLambertian) return SamplingType.Hemispherical;
+     if (stype === SamplingType.Lambertian) return SamplingType.PoorLambertian;
+     if (stype === SamplingType.Hemispherical) return SamplingType.Lambertian;
+ }
+ let sampling_type = SamplingType.PoorLambertian;
+
  function GenerateScene()
  {
      const overlay = document.getElementById("overlay");
@@ -103,9 +124,9 @@
 	   pt[1].setAttribute("fill", "red");
 
      // unit cirle at hit point
-     var c = [.5*w, h*(1.0-k_pct - normlen_pct)];
-	   pt[2].setAttribute("cx", c[0]);
-	   pt[2].setAttribute("cy", c[1]);
+     var c = new Vec(.5*w, h*(1.0-k_pct - normlen_pct));
+	   pt[2].setAttribute("cx", c.x);
+	   pt[2].setAttribute("cy", c.y);
 	   pt[2].setAttribute("r", normlen);
 	   pt[2].setAttribute("fill", "none");
 
@@ -117,11 +138,16 @@
 
      // generate some lines of reflection
      if (!from_circle) {
-         var p = [0.5*w, h*(1.0-k_pct)]; // hit point from which reflection will begin
+         var p = new Vec(0.5*w, h*(1.0-k_pct)); // hit point from which reflection will begin
      }
-     else { var p = c; }// visualize from center of unit circle
-     //console.log("origin: " + p[0] +", "+p[1]);
+     else { var p = c; } // visualize from center of unit circle
+     //console.log("origin: " + p.x +", "+p.y);
+
+     // did I mention not to use this? That it's utterly hackitty hack hack?
+     let normal = new Vec(0,-1.0);
+
      for (i=0; i<nsamples; i++) {
+         // pick a random point in a unit circle
          do {
              var x = Math.random()*2.0 - 1.0;
              var y = Math.random()*2.0 - 1.0;
@@ -129,40 +155,55 @@
          sample = new Vec(x,y);
          //console.log("sample: " + sample.x + ", " + sample.y);
 
-         // to better simulate Lambertian, normalize the sample to the edge of the circle
-         if (better_sampling) {
-             sample.normalize();
+         switch (sampling_type) {
+             case SamplingType.PoorLambertian: // just use the random point
+                 break;
+             case SamplingType.Lambertian: // better Lambertian by normalizing sample to the edge of the circle
+                 sample.normalize();
+                 break;
+             case SamplingType.Hemispherical:
+                 if (normal.dot(sample) < 0.0) { sample.y = (sample.y-1.0) * -1.0; }
+                 else { sample.y += 1.0; }
+                 break;
+             default: console.log("unknown SamplingType: " + sampling_type);
+         }
+         //console.log("sample: " + sample.x + ", " + sample.y);
+
+         if (from_circle) {
+             ray = new Ray(new Vec(p.x, p.y), sample);
+         }
+         else {
+             rvec = new Vec(c.x+normlen*sample.x-p.x,
+                            c.y+normlen*sample.y-p.y);
+             rvec.normalize();
+             ray = new Ray(new Vec(p.x, p.y), rvec);
          }
 
          // throw in some cute colored pts to show where the sample comes from
          var point = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-         point.setAttribute('cx',c[0]+normlen*sample.x);
-         point.setAttribute('cy',c[1]+normlen*sample.y);
+         point.setAttribute('cx',c.x+normlen*sample.x);
+         point.setAttribute('cy',c.y+normlen*sample.y);
          point.setAttribute("r", 5)
          point.setAttribute("stroke", "lightgreen")
          point.setAttribute("stroke", "lightgreen")
          point.setAttribute("fill", "lightgreen")
          overlay.appendChild(point);
 
-         if (from_circle) {
-             ray = new Ray(new Vec(p[0], p[1]), sample);
-         }
-         else {
-             rvec = new Vec(c[0]+normlen*sample.x-p[0],
-                            c[1]+normlen*sample.y-p[1]);
-             rvec.normalize();
-             ray = new Ray(new Vec(p[0], p[1]), rvec);
-         }
-
          var line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-         line.setAttribute('x1',p[0]);
-         line.setAttribute('y1',p[1]);
+         line.setAttribute('x1',p.x);
+         line.setAttribute('y1',p.y);
          tpt = ray.at(3.0*normlen);
          line.setAttribute('x2',tpt.x);
          line.setAttribute('y2',tpt.y);
-         line.setAttribute("stroke", "black")
+         if (artistic) {
+             line.style.fill = "white";//"#"+Math.floor(Math.random()*16777215).toString(16));
+             line.style.stroke = "#"+Math.floor(Math.random()*16777215).toString(16);
+         }
+         else {
+             line.setAttribute("stroke", "black");
+         }
          line.setAttribute("stroke-linecap", "round");
-         line.setAttribute("stroke-width", 0.5)
+         line.setAttribute('stroke-width', 0.5);
          overlay.appendChild(line);
      }
  }
@@ -186,7 +227,7 @@
  ///////////////////////////////////////////////////////////////////////////////////
  // Below are the main UI control and SVG update functions.
  ///////////////////////////////////////////////////////////////////////////////////
- var key_presses = 0;
+ var key_presses = 3; // I guess we won't put people through this. 
  var doit; // timer for window resize
  var selPt = null;
  var normlen_pct = 0.15;
@@ -195,8 +236,9 @@
  var lines = new Array(3);
  var pt = new Array(4);
  var from_circle = false;
- var better_sampling = true;
- var nsamples = 100;
+ var artistic = true;
+ var nsamples = 75;
+ var hide_gui = false;
  $(document).ready(function() {
 
 	   $("circle").on( "mousedown", function( event ) {
@@ -232,7 +274,14 @@
                      changed = true;
                      break;
                  case 'l':
-                     better_sampling = !better_sampling;
+                 case 's':
+                     //console.log("sampling_type: " + sampling_type);
+                     sampling_type = getNextSamplingType(sampling_type);
+                     changed = true;
+                     break;
+                 case 'L':
+                 case 'S':
+                     sampling_type = getPrevSamplingType(sampling_type);
                      changed = true;
                      break;
                  case 'r':
@@ -247,19 +296,35 @@
                      nsamples /= 3.14159/2.0;
                      changed = true;
                      break;
+                 case 'g':
+                     hide_gui = !hide_gui;
+                     break;
+                 case 'a':
+                     artistic = !artistic;
+                     changed = true;
+                     break;
                  case 'h':
-                     help.innerHTML = "'l' to toggle Lambertian<br>'c' to toggle source<br>'r' refresh<br>'+'/'-' inc/dec lines"
+                     help.innerHTML = "'l'/'L' to cycle between methods<br>'c' to toggle source<br>'r' refresh<br>'+'/'-' inc/dec lines<br>'a' artistic colors<br>'g' toggle gui"
                      break;
                  default: help.innerHTML = "Press 'h' for help.";
              }
 
+             // todo: add artistic mode (lots of colored lines)
+             // todo: publish this on my web site
              state.innerHTML = "";
-             if (better_sampling) state.innerHTML += "Lambertian";
-             else                 state.innerHTML += "_cheap_ Lambertian";
-             state.innerHTML += " *radiance* ";
-             if (from_circle)     state.innerHTML += "from the center";
-             else                 state.innerHTML += "from hit point";
-             // else hemispherical, but not done so just putting a todo here rather than figuring out how to better show status
+             state.innerHTML += sampling_type;
+             if (from_circle) state.innerHTML += " from the center";
+             else             state.innerHTML += " from hit point";
+
+             if (hide_gui) {
+                 state.style.visibility = 'hidden';
+                 help.style.visibility = 'hidden';
+             }
+             else {
+                 state.style.visibility = 'visible';
+                 help.style.visibility = 'visible';
+             }
+
              if (changed) {
                  ClearScene();
                  GenerateScene();
@@ -276,12 +341,6 @@
  });
  ///////////////////////////////////////////////////////////////////////////////////
 </script>
-
-// no idea what is different about div below and a <p> id here, or why the <p>id (haha) needs canvas
-// oh! accidental discovery: it's just multiple things, canvas for the canvas, and #foo for that <p>id
-// well, one problem is the <p> disappeared, going <div> -- which didn't help!
-// no clue... and I was almost liking this html-css-js thing
-// omfg: the comments were the killer. It's like the *want* to have bad code.
 
 <style>
  html {
@@ -302,6 +361,7 @@
 	   width:  100%;
 	   height: 100%;
      background: #a6c8ff;
+     z-index: -1;
  }
  #keyboard_help {
      font-family: Arial, Helvetica, sans-serif;
@@ -320,15 +380,24 @@
      position: fixed;
      top: 0;
      right: 0;
-     width: 20%;
+     width: 30%;
      border: 3px solid #73AD21;
      padding: 2px;
  }
+ .sig {
+     text-decoration: none;
+     position: absolute;
+	   padding: 5px 5px 5px 10px;
+     bottom: 0;
+     color: white;
+     opacity: 100%;
+ }
+ .sig:hover {
+     color: #22fc00;   //#fcba03;
+ }
  circle {
-	   //fill: none;
 	   stroke: black;
 	   stroke-width: 1px;
-	   //r: 5px;  // everyone or noone, not overridable
  }
  circle:hover {
 	   fill: red;
@@ -351,9 +420,9 @@
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    <svg id="overlay">
-    </svg>
+    <svg id="overlay"></svg>
     <div id="keyboard_help">Press a key to change image.</div>
     <div id="state">artistic</div>
+    <a class="sig" href="https://cchriste.io"><𝓬𝓽𝓬></a>
 </body>
 </html>
